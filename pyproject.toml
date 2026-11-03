@@ -1,0 +1,25 @@
+[project]
+name = "jas-huntsmidi"
+version = "0.1.0"
+description = "Map analog keyboard travel to a 4x4 MIDI pad controller"
+readme = "README.md"
+authors = [
+    { name = "Jas", email = "jasmes@gmail.com" }
+]
+requires-python = ">=3.15"
+dependencies = [
+    "AnalogSensePy",
+    "mido",
+    "python-rtmidi",
+]
+
+[project.scripts]
+jas-huntsmidi = "jas_huntsmidi.cli:main"
+
+[build-system]
+requires = ["uv_build>=0.13.6,<0.14.0"]
+build-backend = "uv_build"
+
+# Keep native MIDI backends; JACK's sem_timedwait is unavailable on macOS.
+[tool.uv.config-settings-package]
+python-rtmidi = { "setup-args" = ["-Djack=false"] }

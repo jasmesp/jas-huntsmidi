@@ -2,9 +2,9 @@
 
 Windows-oriented. Requires Razer Synapse, AnalogSensePy, mido, python-rtmidi.
 
-    py -m pip install AnalogSensePy mido python-rtmidi
-    py huntsman_midi.py --list-ports
-    py huntsman_midi.py --port "loopMIDI Port"
+    uv sync
+    uv run jas-huntsmidi --list-ports
+    uv run jas-huntsmidi --port "loopMIDI Port"
 
 AnalogSense callbacks are treated as snapshots of currently active analog keys.
 """
@@ -171,7 +171,7 @@ def demo(engine: PadEngine):
         time.sleep(dt)
 
 
-def run():
+def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--list-ports', action='store_true')
     parser.add_argument('--list-devices', action='store_true')

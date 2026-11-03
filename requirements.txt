@@ -1,3 +1,0 @@
-AnalogSensePy
-mido
-python-rtmidi
