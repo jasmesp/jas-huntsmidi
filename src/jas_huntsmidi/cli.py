@@ -171,6 +171,92 @@ def demo(engine: PadEngine):
         time.sleep(dt)
 
 
+def create_analog_sense():
+    """Return an AnalogSense instance with Razer Huntsman V3 fixes and 0x02EA support."""
+    import analogsense.analogsense as as_mod
+    from analogsense import AnalogSense
+    from analogsense.providers import AsProviderRazerHuntsmanV3, _razer_to_hid
+
+    class RazerHuntsmanV3Fixed(AsProviderRazerHuntsmanV3):
+        FILTERS = [
+            *AsProviderRazerHuntsmanV3.FILTERS,
+            # Razer Huntsman V3 HE Magnetic Tenkeyless 8KHz
+            {"vendor_id": 0x1532, "product_id": 0x02EA, "usage_page": 0x0001, "usage": 0x0000},
+        ]
+
+        def _handle_report(self, data: bytes, handler):
+            if not data:
+                return
+            if data[0] == self._REPORT_ID:
+                data = data[1:]
+            elif data[0] != 0:
+                return
+            else:
+                data = data[1:]
+
+            active_keys = []
+            current_scancodes = set()
+            i = 0
+            while i + 2 < len(data):
+                scancode = data[i]
+                if scancode == 0:
+                    break
+                value_hi = data[i + 1]
+                value_lo = data[i + 2]
+                i += 3
+                hid_sc = _razer_to_hid(scancode)
+                if hid_sc:
+                    travel = ((value_hi << 8) | value_lo) / 65535.0
+                    active_keys.append({"scancode": hid_sc, "value": travel, "digital": None})
+                    current_scancodes.add(hid_sc)
+            for released in self._prev_scancodes - current_scancodes:
+                active_keys.append({"scancode": released, "value": 0.0, "digital": None})
+            self._prev_scancodes = current_scancodes
+            handler(active_keys)
+
+    class PatchedAnalogSense(AnalogSense):
+        def __init__(self):
+            super().__init__()
+            self.providers = [
+                RazerHuntsmanV3Fixed if p is AsProviderRazerHuntsmanV3 else p
+                for p in self.providers
+            ]
+
+        def _collect_candidates(self):
+            # Windows exposes MI_01&Col04..Col07 all with usage_page=0x0001, usage=0x0000,
+            # while actual Report ID 0x0B analog reports arrive on MI_01&Col07.
+            candidates = []
+            seen = set()
+            for provider_cls in self.providers:
+                for f in provider_cls.FILTERS:
+                    vendor_id = f.get("vendor_id", 0)
+                    product_id = f.get("product_id", 0)
+                    try:
+                        infos = as_mod._hid.enumerate(vendor_id, product_id)
+                    except Exception:
+                        continue
+                    # Prefer Col07 when multiple collections share the same usage_page/usage
+                    infos.sort(key=lambda info: b"col07" not in info.get("path", b"").lower())
+                    for info in infos:
+                        if "usage_page" in f and info.get("usage_page") != f["usage_page"]:
+                            continue
+                        if "usage" in f and info.get("usage") != f["usage"]:
+                            continue
+                        dedup_key = (
+                            info["vendor_id"],
+                            info["product_id"],
+                            info.get("usage_page", 0),
+                            info.get("usage", 0),
+                        )
+                        if dedup_key in seen:
+                            continue
+                        seen.add(dedup_key)
+                        candidates.append((info, provider_cls))
+            return candidates
+
+    return PatchedAnalogSense()
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--list-ports', action='store_true')
@@ -189,8 +275,7 @@ def main():
 
     analog = device = None
     if args.list_devices or not args.demo:
-        from analogsense import AnalogSense
-        analog = AnalogSense()
+        analog = create_analog_sense()
         devices = analog.get_devices()
         if args.list_devices:
             for i, d in enumerate(devices):
