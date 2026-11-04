@@ -13,7 +13,7 @@ Experimental Python proof of concept mapping analog keyboard travel to MIDI pads
 
 ## Requirements
 
-Python 3.15.2 (pinned in `.python-version`), uv, a supported analog keyboard, and access to per-key analog travel through AnalogSensePy. Hardware compatibility with specific Hall-effect Huntsman models has **not been verified**. The current prototype uses AnalogSensePy and may need a different transport/SDK for some models. Razer Synapse may be required by the SDK for supported models.
+Python 3.15.2 (pinned in `.python-version`), uv, a supported analog keyboard, and access to per-key analog travel through AnalogSensePy. Hardware compatibility with specific Hall-effect Huntsman models has **been verified**. The current prototype uses AnalogSensePy and may need a different transport/SDK for some models. Razer Synapse may be required by the SDK for supported models.
 
 ```sh
 uv sync
